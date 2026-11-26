@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    name: Lint, Typecheck, Migrations, Build & Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: grant_ledger
+          POSTGRES_PASSWORD: grant_ledger_ci
+          POSTGRES_DB: grant_ledger_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U grant_ledger -d grant_ledger_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Generate OpenAPI specification
+        run: pnpm openapi:generate
+
+      - name: Verify SQL migrations on Postgres 16
+        env:
+          DATABASE_URL: postgresql://grant_ledger:grant_ledger_ci@localhost:5432/grant_ledger_ci
+        run: pnpm db:migrate
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Run Postgres integration tests (Testcontainers)
+        run: pnpm test:integration

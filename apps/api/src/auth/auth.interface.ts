@@ -4,7 +4,7 @@ export const AUTH_PROVIDER = Symbol('AUTH_PROVIDER');
 
 export interface IAuthProvider {
   verifyToken(token: string): Promise<AuthUserContext>;
-  issueDevToken(payload: AuthTokenPayload): Promise<string>;
+  issueToken(payload: AuthTokenPayload): Promise<string>;
 
   // Future MFA & SSO hook points
   initiateMfaChallenge?(userId: string): Promise<{ challengeId: string }>;

@@ -12,6 +12,7 @@ import { runWithRequestContext } from '../logging/request-context';
 import { IS_PUBLIC_KEY } from './auth.decorators';
 import { AUTH_PROVIDER } from './auth.interface';
 import type { IAuthProvider } from './auth.interface';
+import { AuthService } from './auth.service';
 
 export interface AuthenticatedRequest extends Request {
   user: AuthUserContext;
@@ -22,6 +23,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     @Inject(AUTH_PROVIDER) private readonly authProvider: IAuthProvider,
     private readonly reflector: Reflector,
+    private readonly authService: AuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -43,6 +45,7 @@ export class AuthGuard implements CanActivate {
 
     const token = authHeader.substring(7).trim();
     const userContext = await this.authProvider.verifyToken(token);
+    await this.authService.validateSession(userContext);
 
     request.user = userContext;
 

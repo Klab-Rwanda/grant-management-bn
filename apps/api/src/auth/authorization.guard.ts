@@ -1,4 +1,4 @@
-import { isInstitutionRole, isPlatformRole, isStartupRole, Role } from '@grant-ledger/shared';
+import { isRoleCompatibleWithOrg, Role } from '@grant-ledger/shared';
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthenticatedRequest } from './auth.guard';
@@ -14,16 +14,20 @@ export class AuthorizationGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    // If no roles are required on the route, pass
-    if (!requiredRoles || requiredRoles.length === 0) {
-      return true;
-    }
-
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
 
     if (!user) {
       throw new ForbiddenException('User context is missing');
+    }
+
+    if (!isRoleCompatibleWithOrg(user.role, user.org_type)) {
+      throw new ForbiddenException(`Role '${user.role}' is incompatible with ${user.org_type} workspace`);
+    }
+
+    // If no roles are required on the route, workspace compatibility is still enforced.
+    if (!requiredRoles || requiredRoles.length === 0) {
+      return true;
     }
 
     // Role check
@@ -32,21 +36,6 @@ export class AuthorizationGuard implements CanActivate {
       throw new ForbiddenException(
         `Role '${user.role}' is not authorized. Required: [${requiredRoles.join(', ')}]`,
       );
-    }
-
-    // Workspace type compatibility check
-    if (user.org_type === 'STARTUP' && !isStartupRole(user.role)) {
-      throw new ForbiddenException(`Role '${user.role}' is incompatible with STARTUP workspace`);
-    }
-
-    if (user.org_type === 'INSTITUTION' && !isInstitutionRole(user.role)) {
-      throw new ForbiddenException(
-        `Role '${user.role}' is incompatible with INSTITUTION workspace`,
-      );
-    }
-
-    if (user.org_type === 'PLATFORM' && !isPlatformRole(user.role)) {
-      throw new ForbiddenException(`Role '${user.role}' is incompatible with PLATFORM workspace`);
     }
 
     return true;

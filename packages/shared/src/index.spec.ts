@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isOrgType,
+  isRole,
+  isRoleCompatibleWithOrg,
   isInstitutionRole,
   isPlatformRole,
   isStartupRole,
@@ -23,6 +26,13 @@ describe('isValidDecimalString', () => {
 });
 
 describe('Role category helpers', () => {
+  it('accepts only documented roles and workspace types', () => {
+    expect(isRole('FDR')).toBe(true);
+    expect(isRole('TREASURY')).toBe(false);
+    expect(isOrgType('STARTUP')).toBe(true);
+    expect(isOrgType('OTHER')).toBe(false);
+  });
+
   it('correctly maps roles to workspace scopes', () => {
     const startupRoles: Role[] = ['FDR', 'FIN', 'OPS'];
     const institutionRoles: Role[] = ['PM', 'REV', 'APR'];
@@ -45,5 +55,9 @@ describe('Role category helpers', () => {
       expect(isInstitutionRole(r)).toBe(false);
       expect(isPlatformRole(r)).toBe(true);
     }
+
+    expect(isRoleCompatibleWithOrg('FIN', 'STARTUP')).toBe(true);
+    expect(isRoleCompatibleWithOrg('REV', 'STARTUP')).toBe(false);
+    expect(isRoleCompatibleWithOrg('ADM', 'PLATFORM')).toBe(true);
   });
 });

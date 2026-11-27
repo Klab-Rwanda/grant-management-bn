@@ -14,7 +14,7 @@
 - **Option B:** Advance / milestone-based only (disburse upfront/on milestone $\rightarrow$ spend $\rightarrow$ reconcile $\rightarrow$ unlock next tranche).
 - **Option C (Recommended):** Configurable `funding_model` (`ADVANCE` | `REIMBURSEMENT`) per Grant Program / Tranche.
 
-**Decision:**
+**Decision:** Option A — reimbursement only. Startups spend and submit evidence first; the institution reviews and authorizes before executing the off-platform payment. Advance-release transitions are out of scope for this lifecycle.
 
 ---
 
@@ -28,7 +28,7 @@
 - **Option B:** Credit `Grant Revenue` immediately upon cash receipt for all grants (cash-basis simplicity; distorts monthly P&L/burn).
 - **Option C:** Keep Stage 7 off-ledger; startup accountants manually create cash-receipt journal entries.
 
-**Decision:**
+**Decision:** Option C — payout reconciliation remains off-ledger. Startup accountants post the cash receipt and any fees manually after confirmation; the lifecycle does not create journal entries.
 
 ---
 
@@ -42,7 +42,7 @@
 - **Option B:** Partial / net payout—approved items are disbursed immediately while rejected items split off into a remediation cycle.
 - **Option C (Recommended):** Tranche holds in `CHANGES_REQUESTED`, and the startup may either remediate the item, swap in another eligible expense, or drop the item and accept a reduced tranche payout (preserving `APPROVED` items untouched across resubmissions).
 
-**Decision:**
+**Decision:** Option C — a rejected item holds the tranche in `CHANGES_REQUESTED`. The startup may repair it, replace it with another eligible expense, or explicitly drop it; previously approved items remain locked and carry forward unchanged.
 
 ---
 
@@ -83,4 +83,30 @@
 - **Option B:** Add an 8th role (`Institution Finance / Treasury Officer`) dedicated exclusively to Stage 7 off-platform payout recording and bank confirmation upload.
 - **Option C:** Merge `Committee Approver (APR)` into `Grant Program Manager (PM)` for Phase 1 and re-introduce `APR` later (note: Figma already draws the committee sub-step).
 
-**Decision:**
+**Decision:** Option A — retain the seven documented roles. `FIN` prepares submissions and runs readiness checks; `FDR` attests and submits; `REV` verifies; `APR` separately authorizes disbursement. `PM` records the executed payout, and startup `FIN` or `FDR` separately confirms receipt. The recorder and confirmer must be different users. No eighth Finance Officer role is added.
+
+---
+
+## 7. Dashboard Authentication
+
+**Decision:** Email/password authentication with tenant-admin invitations. There is no public self-registration; dashboard access requires an active user account and workspace membership. Invitation and password-policy details, initial platform-admin provisioning, account recovery, and login rate limits remain open in [spec-gaps.md](spec-gaps.md).
+
+---
+
+## 8. Platform Administration MVP Implementation Baseline
+
+The platform dashboard implementation uses the following conservative baseline:
+
+- Platform admins provision startup and institution workspaces. Startup workspaces invite an `FDR`; institution workspaces invite a `PM`. Legal name, country, functional currency, and fiscal-year start month are collected at creation.
+- Platform admins may suspend/reactivate memberships but do not alter global user accounts or roles. A workspace must retain at least one active administrator.
+- Cross-tenant audit review returns event metadata only; before/after state is not exposed.
+- Portfolio analytics are counts by workspace/grant type and status only; no financial totals or currency conversion are exposed.
+- CAMT.053 XML imports are tenant-owned and staged for manual review. Importing does not reconcile statements or create journal entries.
+
+These are implementation defaults, not a decision on initial platform-admin bootstrapping, bank-provider connectivity, statement matching, or accounting treatment. Those remain open before production use.
+
+## 9. Grant Lifecycle Implementation Decisions
+
+- Category limits may use the percentage variance configured for the program/tranche. The total claim must still remain within the tranche allocation.
+- Startup `FIN`/`FDR` enters the actual FX rate when tagging a functional-currency expense to a grant-currency tranche. The rate and converted grant amount are frozen in each submission snapshot.
+- The recorded payout amount must exactly equal the authorized amount. The institution `PM` records payment and bank proof; a different startup `FIN` or `FDR` confirms receipt.

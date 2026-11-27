@@ -27,10 +27,15 @@ export const envSchema = z.object({
   S3_ACCESS_KEY: z.string().min(1),
   S3_SECRET_KEY: z.string().min(1),
   S3_FORCE_PATH_STYLE: booleanFromEnv.default('true'),
+  CLAMAV_HOST: z.string().min(1).default('127.0.0.1'),
+  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
+  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(20000),
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
   SMTP_SECURE: booleanFromEnv.default('false'),
   SMTP_FROM: z.string().email(),
+  AUTH_JWT_SECRET: z.string().min(32).optional(),
+  WEB_BASE_URL: z.string().url().default('http://localhost:3000'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

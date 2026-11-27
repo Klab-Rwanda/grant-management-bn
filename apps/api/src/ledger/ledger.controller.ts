@@ -303,7 +303,7 @@ export class LedgerController {
   }
 
   @Post('ledger/expenses')
-  @Roles('FDR', 'FIN', 'OPS')
+  @Roles('FDR', 'FIN')
   @ApiOperation({ summary: 'Simple expense recording for non-accountants' })
   @ApiBody({ type: RecordExpenseRequestDto })
   async recordExpense(

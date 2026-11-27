@@ -63,6 +63,17 @@ services:
       mc mb --ignore-existing local/${S3_BUCKET:-grant-ledger-vault}
       "
 
+  clamav:
+    image: clamav/clamav:latest
+    container_name: grant-ledger-clamav
+    ports:
+      - '3310:3310'
+    healthcheck:
+      test: ['CMD-SHELL', 'clamdscan --ping=1']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: grant-ledger-mailpit

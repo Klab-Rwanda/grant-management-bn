@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { sql, Transaction } from 'kysely';
 import { DatabaseService } from './database.service';
 import { Database } from './database.types';
+import type { AuthUserContext } from '@grant-ledger/shared';
 
 export interface TenantContextOptions {
   asAppRole?: boolean;
@@ -71,6 +72,22 @@ export class TenantContextService {
   async withOwnerContext<T>(callback: (tx: Transaction<Database>) => Promise<T>): Promise<T> {
     return await this.database.db.transaction().execute(async (tx) => {
       return await callback(tx);
+    });
+  }
+
+  async withPlatformContext<T>(
+    actor: AuthUserContext,
+    callback: (tx: Transaction<Database>) => Promise<T>,
+  ): Promise<T> {
+    if (actor.role !== 'ADM' || actor.org_type !== 'PLATFORM') {
+      throw new ForbiddenException('A platform administrator context is required');
+    }
+
+    return await this.database.db.transaction().execute(async (tx) => {
+      await sql`SELECT set_config('app.current_tenant_id', ${actor.tenant_id}, true)`.execute(tx);
+      await sql`SELECT set_config('app.platform_admin', 'true', true)`.execute(tx);
+      await sql`SET LOCAL ROLE grant_ledger_app`.execute(tx);
+      return callback(tx);
     });
   }
 }

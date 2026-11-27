@@ -1,17 +1,32 @@
-import { AuthTokenPayload, AuthUserContext, Role } from '@grant-ledger/shared';
+import {
+  AuthTokenPayload,
+  AuthUserContext,
+  isOrgType,
+  isRole,
+  isRoleCompatibleWithOrg,
+} from '@grant-ledger/shared';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { IAuthProvider } from './auth.interface';
 
 @Injectable()
-export class StubJwtAuthProvider implements IAuthProvider {
+export class JwtAuthProvider implements IAuthProvider {
   private readonly secret: string;
 
-  constructor() {
-    this.secret = process.env.AUTH_JWT_SECRET ?? 'dev-insecure-jwt-secret-do-not-use-in-prod';
+  constructor(secret?: string, nodeEnv = process.env.NODE_ENV) {
+    const configuredSecret = secret ?? process.env.AUTH_JWT_SECRET;
+    if (
+      nodeEnv === 'production' &&
+      (!configuredSecret ||
+        configuredSecret === 'replace-with-a-random-secret-at-least-32-characters')
+    ) {
+      throw new Error('AUTH_JWT_SECRET must be configured with a unique secret in production');
+    }
+
+    this.secret = configuredSecret ?? randomBytes(32).toString('base64url');
   }
 
-  async issueDevToken(payload: AuthTokenPayload): Promise<string> {
+  async issueToken(payload: AuthTokenPayload): Promise<string> {
     const header = { alg: 'HS256', typ: 'JWT' };
     const now = Math.floor(Date.now() / 1000);
     const exp = payload.exp ?? now + 24 * 60 * 60; // 24 hours
@@ -68,47 +83,29 @@ export class StubJwtAuthProvider implements IAuthProvider {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    if (parsedPayload.exp && parsedPayload.exp < now) {
+    if (typeof parsedPayload.exp !== 'number' || parsedPayload.exp <= now) {
       throw new UnauthorizedException('Token has expired');
     }
 
-    if (
-      !parsedPayload.sub ||
-      !parsedPayload.tenant_id ||
-      !parsedPayload.role ||
-      !parsedPayload.org_type
-    ) {
+    if (!parsedPayload.sub || !parsedPayload.email || !parsedPayload.tenant_id) {
       throw new UnauthorizedException('Token payload is missing required security claims');
+    }
+
+    if (!isRole(parsedPayload.role) || !isOrgType(parsedPayload.org_type)) {
+      throw new UnauthorizedException('Token contains an unsupported role or workspace type');
+    }
+
+    if (!isRoleCompatibleWithOrg(parsedPayload.role, parsedPayload.org_type)) {
+      throw new UnauthorizedException('Token role is incompatible with its workspace type');
     }
 
     return {
       user_id: parsedPayload.sub,
       email: parsedPayload.email,
       tenant_id: parsedPayload.tenant_id,
-      role: parsedPayload.role as Role,
+      role: parsedPayload.role,
       org_type: parsedPayload.org_type,
       mfa_verified: parsedPayload.mfa_verified ?? false,
-    };
-  }
-
-  // Hook point implementations for future MFA
-  async initiateMfaChallenge(userId: string): Promise<{ challengeId: string }> {
-    return { challengeId: `mfa-stub-${userId}-${Date.now()}` };
-  }
-
-  async verifyMfa(_challengeId: string, code: string): Promise<boolean> {
-    return code === '123456';
-  }
-
-  // Hook point implementation for future SSO
-  async handleSsoCallback(provider: string, _code: string): Promise<AuthUserContext> {
-    return {
-      user_id: 'sso-user-stub',
-      email: `sso-user@${provider}.local`,
-      tenant_id: 'sso-tenant-stub',
-      role: 'FIN',
-      org_type: 'STARTUP',
-      mfa_verified: true,
     };
   }
 }

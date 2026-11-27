@@ -4,7 +4,7 @@
 
 - **Pre-Code Specification Audit:**
   - Audited architecture spec and uploaded reference/Figma screens in [spec-gaps.md](spec-gaps.md).
-  - Documented 6 blocking product/architecture decisions in [decisions.md](decisions.md) (awaiting human input).
+  - Recorded the confirmed reimbursement-only lifecycle and seven-role payout mapping in [decisions.md](decisions.md); accounting-period and duplicate-disclosure decisions remain open.
   - Formalized the dual-field tranche state machine (`availability_status` + `review_status`) in [state-machine.md](state-machine.md).
 - **Milestone 1 — Project Foundation (No Business Logic):**
   - Monorepo configured with `pnpm-workspace.yaml` (`apps/api`, `apps/web`, `packages/shared`).
@@ -26,7 +26,9 @@
   - Data ownership matrix formalized in [docs/data-ownership.md](data-ownership.md) codifying asymmetric isolation (institutions read only grant-side snapshots; never private startup ledgers).
   - Security database migration (`0002_security_base.sql`) added with RLS policies and append-only triggers.
   - `TenantContextService` transaction wrapper executing `SET LOCAL app.current_tenant_id` and assuming `grant_ledger_app` role with automatic cleanup upon transaction completion.
-  - Auth module implemented behind `IAuthProvider` interface with `StubJwtAuthProvider` (HS256 tokens, MFA/SSO hook points).
+  - Auth module provides HS256 sessions through `IAuthProvider`; email/password login and tenant-admin invitation acceptance use the existing identity tables.
+  - Dashboard access is checked server-side through the API, stored in an HttpOnly cookie, and revoked when the account, workspace, or membership is suspended.
+  - Invitation acceptance and membership creation are audited in the same transaction; invitation tokens are stored as hashes.
   - `AuthGuard` and `AuthorizationGuard` enforcing role-based permissions and workspace type compatibility.
   - `SegregationOfDutiesService` enforcing separation between preparer/approver, reviewer/committee approver, and payout recorder/confirmer.
   - `AuditLogService` appending immutable audit logs with deterministic SHA-256 hash chaining serialized via `pg_advisory_xact_lock`.
@@ -50,11 +52,20 @@
   - 40 automated unit tests passing across all packages (`packages/shared`: 9, `apps/api`: 29, `apps/web`: 2).
   - All automated checks pass with exit code 0 (`pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm build`, `pnpm openapi:generate`, `pnpm test:unit`).
 
+- **Platform Administration MVP:**
+  - Added platform-admin-only workspace provisioning, status management, membership suspension/reactivation, metadata-only cross-tenant audit review, and count-only portfolio analytics.
+  - Workspace create and access changes use centralized lifecycle transitions and append-only audit entries in the same transaction. Initial startup/institution admins receive role-appropriate email invitations.
+  - Added tenant-scoped CAMT.053 import parsing and a private review queue; imports are duplicate-checked, stored as decimal-string transaction rows, and never auto-posted or reconciled.
+  - The platform integration view exposes import metadata only. Initial platform-`ADM` bootstrap, provider connections, statement matching/reconciliation, and financial portfolio reporting remain open.
+
 ## Local Database Note
 
-- User manually created the full 36-table PostgreSQL schema directly in local pgAdmin 4 (`grant_ledger` database) for early DB inspection. Application migrations remain strictly at Foundation (`0001_init_extensions.sql`) until Milestones 2+ are approved.
+- User manually created the full 36-table PostgreSQL schema directly in local pgAdmin 4 (`grant_ledger` database) for early DB inspection. The local database has no recorded migration history. Do not run the migration chain until the legacy `0004` `tenants` dependency is reconciled with the manually initialized `organizations` schema.
 
-## Pending / Blocked on Decisions
+## Grant Lifecycle MVP
 
-- Fill in the 6 open **`Decision:`** fields in [decisions.md](decisions.md) before starting Milestone 2+ (Security Base, Ledger, Grants, Evidence, Submission, Disbursement Confirmation).
-- Install/start Docker locally to run `docker compose up -d` and Testcontainers integration tests locally (runs in GitHub Actions on `ubuntu-latest`).
+- Implemented program/award/tranche setup, startup expense tagging with manual FX, evidence upload/scanning, readiness blockers, password-confirmed Founder submissions, frozen line/milestone evidence snapshots, reviewer decisions, committee authorization, institution payout recording, startup receipt confirmation, and automatic next-tranche unlocking.
+- Added the role-aware grant workspace and authenticated Next.js API proxy. Multipart uploads preserve their original binary payload through the proxy.
+- Rejected allocations can be repaired, replaced, or explicitly dropped; approved allocations carry forward unchanged. Payout reconciliation remains off-ledger and requires exact authorized-amount matching.
+- Added a forward migration for allocation FX snapshots and a migration adding the `DROPPED` allocation status. Neither has been applied to the manually initialized local database.
+- Remaining production verification: resolve and baseline the migration chain before deployment; exercise RLS, S3/MinIO signing, ClamAV scanning, and the full lifecycle with the intended PostgreSQL schema; rerun the full API typecheck/build after restoring consistent NestJS dependencies.

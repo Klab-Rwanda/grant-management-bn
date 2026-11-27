@@ -46,9 +46,27 @@ Startup Accounting & Grant Management Platform monorepo (`apps/api`, `apps/web`,
    ```bash
    pnpm dev
    ```
-   - Web placeholder: http://localhost:3000
+   - Public landing page: http://localhost:3000
+   - Sign-in: http://localhost:3000/login
+   - Dashboard (requires an authenticated session): http://localhost:3000/dashboard
    - API health endpoint: http://localhost:3001/health
    - API Swagger / OpenAPI UI: http://localhost:3001/docs
+
+## User Authentication
+
+There is no public registration. A tenant administrator signs in, then creates an invitation with
+`POST /invitations` in the API docs. Invitation permissions follow the access matrix: `FDR` for a
+startup, `PM` for an institution, and `ADM` for the platform workspace. The invitee follows the
+emailed link, sets a password of at least 12 characters, and is signed in to the invited workspace.
+Existing accounts must use their current password when accepting another workspace invitation.
+An initial tenant-admin account and membership must be provisioned by the deployment operator;
+the invitation flow does not create its own first administrator.
+
+In local development, invitation email is delivered to Mailpit at http://localhost:8025. The web
+session is stored in an HttpOnly cookie; the dashboard redirects to sign-in when the cookie or
+workspace membership is no longer valid. Set a unique `AUTH_JWT_SECRET` and a public `WEB_BASE_URL`
+in non-local environments. Current implementation defaults are a 12-character minimum password
+and 24-hour invitation/session expiry; confirm these security policies before production use.
 
 ## Verification Commands
 

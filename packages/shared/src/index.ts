@@ -5,6 +5,10 @@
 export type DecimalString = string;
 
 export * from './decimal';
+export * from './grant-status.enum';
+export * from './grant-milestone-status.enum';
+export * from './grant-budget-status.enum';
+export * from './grant-application-status.enum';
 
 export interface StructuredLogContext {
   request_id: string;
@@ -39,18 +43,20 @@ export type MembershipStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED';
 /**
  * Seven canonical roles from the persona key and RBAC specification
  */
-export type Role =
-  | 'FDR' // Founder / CEO (Startup)
-  | 'FIN' // Finance Lead / Accountant (Startup)
-  | 'OPS' // Operations Lead (Startup)
-  | 'PM' // Grant Program Manager (Institution)
-  | 'REV' // Financial Reviewer / Auditor (Institution)
-  | 'APR' // Committee Approver (Institution)
-  | 'ADM'; // Ecosystem Admin (Platform)
+export const ROLES = ['FDR', 'FIN', 'OPS', 'PM', 'REV', 'APR', 'ADM'] as const;
+export type Role = (typeof ROLES)[number];
 
 export const STARTUP_ROLES: ReadonlySet<Role> = new Set(['FDR', 'FIN', 'OPS']);
 export const INSTITUTION_ROLES: ReadonlySet<Role> = new Set(['PM', 'REV', 'APR']);
 export const PLATFORM_ROLES: ReadonlySet<Role> = new Set(['ADM']);
+
+export function isRole(value: unknown): value is Role {
+  return typeof value === 'string' && (ROLES as readonly string[]).includes(value);
+}
+
+export function isOrgType(value: unknown): value is OrgType {
+  return value === 'STARTUP' || value === 'INSTITUTION' || value === 'PLATFORM';
+}
 
 export function isStartupRole(role: Role): boolean {
   return STARTUP_ROLES.has(role);
@@ -62,6 +68,14 @@ export function isInstitutionRole(role: Role): boolean {
 
 export function isPlatformRole(role: Role): boolean {
   return PLATFORM_ROLES.has(role);
+}
+
+export function isRoleCompatibleWithOrg(role: Role, orgType: OrgType): boolean {
+  return (
+    (orgType === 'STARTUP' && isStartupRole(role)) ||
+    (orgType === 'INSTITUTION' && isInstitutionRole(role)) ||
+    (orgType === 'PLATFORM' && isPlatformRole(role))
+  );
 }
 
 export type ActorType = 'USER' | 'SYSTEM' | 'API_KEY';

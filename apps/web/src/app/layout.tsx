@@ -3,8 +3,9 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Grant Ledger',
-  description: 'Startup Accounting & Grant Management Platform',
+  title: 'Grant Ledger | Funding with clarity',
+  description:
+    'Connect startup accounting and grant oversight with clearer financial records and accountability.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
